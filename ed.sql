@@ -1,0 +1,140 @@
+CREATE DATABASE LIBRARY
+USE LIBRARY
+
+CREATE TABLE PUBLISHER (
+    Name VARCHAR(50) PRIMARY KEY,
+    Address VARCHAR(100),
+    Phone VARCHAR(15)
+);
+
+CREATE TABLE BOOK (
+    Book_id INT PRIMARY KEY,
+    Title VARCHAR(50),
+    Publisher_Name VARCHAR(50),
+    Pub_Year INT,
+    FOREIGN KEY (Publisher_Name) REFERENCES PUBLISHER(Name)
+);
+
+CREATE TABLE BOOK_AUTHORS (
+    Book_id INT,
+    Author_Name VARCHAR(50),
+    PRIMARY KEY (Book_id, Author_Name),
+    FOREIGN KEY (Book_id) REFERENCES BOOK(Book_id)
+);
+
+CREATE TABLE LIBRARY_PROGRAMME (
+    Programme_id INT PRIMARY KEY,
+    Programme_Name VARCHAR(50),
+    Address VARCHAR(100)
+);
+
+CREATE TABLE BOOK_COPIES (
+    Book_id INT,
+    Programme_id INT,
+    No_of_Copies INT,
+    PRIMARY KEY (Book_id, Programme_id),
+    FOREIGN KEY (Book_id) REFERENCES BOOK(Book_id),
+    FOREIGN KEY (Programme_id) REFERENCES LIBRARY_PROGRAMME(Programme_id)
+);
+
+CREATE TABLE CARD (
+    Card_No INT PRIMARY KEY
+);
+
+CREATE TABLE BOOK_LENDING (
+    Book_id INT,
+    Programme_id INT,
+    Card_No INT,
+    Date_Out DATE,
+    Due_Date DATE,
+    PRIMARY KEY (Book_id, Programme_id, Card_No),
+    FOREIGN KEY (Book_id) REFERENCES BOOK(Book_id),
+    FOREIGN KEY (Programme_id) REFERENCES LIBRARY_PROGRAMME(Programme_id),
+    FOREIGN KEY (Card_No) REFERENCES CARD(Card_No)
+);
+
+-- Publisher
+INSERT INTO PUBLISHER VALUES ('Pearson', 'Delhi', '9876543210');
+INSERT INTO PUBLISHER VALUES ('McGrawHill', 'Mumbai', '9123456780');
+
+-- Books
+INSERT INTO BOOK VALUES (1, 'DBMS', 'Pearson', 2015);
+INSERT INTO BOOK VALUES (2, 'Data Structures', 'McGrawHill', 2018);
+INSERT INTO BOOK VALUES (3, 'Operating Systems', 'Pearson', 2020);
+
+-- Authors
+INSERT INTO BOOK_AUTHORS VALUES (1, 'Korth');
+INSERT INTO BOOK_AUTHORS VALUES (1, 'Sudharshan');
+INSERT INTO BOOK_AUTHORS VALUES (2, 'Seymour Lipschutz');
+INSERT INTO BOOK_AUTHORS VALUES (3, 'Galvin');
+
+-- Programmes
+INSERT INTO LIBRARY_PROGRAMME VALUES (101, 'MCA', 'Block A');
+INSERT INTO LIBRARY_PROGRAMME VALUES (102, 'BCA', 'Block B');
+
+-- Copies
+INSERT INTO BOOK_COPIES VALUES (1, 101, 5);
+INSERT INTO BOOK_COPIES VALUES (1, 102, 3);
+INSERT INTO BOOK_COPIES VALUES (2, 101, 4);
+INSERT INTO BOOK_COPIES VALUES (3, 102, 6);
+
+-- Cards
+INSERT INTO CARD VALUES (1001);
+INSERT INTO CARD VALUES (1002);
+
+-- Lending
+INSERT INTO BOOK_LENDING VALUES (1, 101, 1001, '2017-01-10', '2017-01-20');
+INSERT INTO BOOK_LENDING VALUES (2, 101, 1001, '2017-02-10', '2017-02-20');
+INSERT INTO BOOK_LENDING VALUES (3, 102, 1001, '2017-03-05', '2017-03-15');
+INSERT INTO BOOK_LENDING VALUES (1, 102, 1001, '2017-04-01', '2017-04-10');
+
+INSERT INTO BOOK_LENDING VALUES (2, 101, 1002, '2017-05-01', '2017-05-10');
+
+SELECT 
+    B.Book_id,
+    B.Title,
+    B.Publisher_Name,
+    BA.Author_Name,
+    BC.Programme_id,
+    BC.No_of_Copies
+FROM BOOK B
+JOIN BOOK_AUTHORS BA ON B.Book_id = BA.Book_id
+JOIN BOOK_COPIES BC ON B.Book_id = BC.Book_id;
+
+SELECT 
+    Card_No,
+    COUNT(Book_id) AS Total_Books
+FROM BOOK_LENDING
+WHERE Date_Out BETWEEN '2017-01-01' AND '2017-06-30'
+GROUP BY Card_No
+HAVING COUNT(Book_id) > 3;
+
+CREATE PARTITION FUNCTION BookYearPartition (INT)
+AS RANGE LEFT FOR VALUES (2000, 2010, 2020);
+CREATE PARTITION SCHEME BookScheme
+AS PARTITION BookYearPartition
+ALL TO ([PRIMARY]);
+CREATE TABLE BOOK_PARTS (
+    Book_id INT ,
+    Title VARCHAR(50),
+    Publisher_Name VARCHAR(50),
+    Pub_Year INT,
+    PRIMARY KEY (BOOK_id,Pub_Year)
+)
+ON BookScheme(Pub_Year);
+INSERT INTO BOOK_PARTS VALUES (1, 'DBMS', 'Pearson', 1999);
+INSERT INTO BOOK_PARTS VALUES (2, 'Data Structures', 'McGrawHill', 2005);
+INSERT INTO BOOK_PARTS VALUES (3, 'Operating Systems', 'Pearson', 2015);
+INSERT INTO BOOK_PARTS VALUES (4, 'Artificial Intelligence', 'Pearson', 2022);
+SELECT * FROM BOOK_PARTS
+WHERE Pub_Year = 2015;
+
+CREATE VIEW Available_Books AS
+SELECT 
+    B.Book_id,
+    B.Title,
+    SUM(BC.No_of_Copies) AS Total_Copies
+FROM BOOK B
+JOIN BOOK_COPIES BC ON B.Book_id = BC.Book_id
+GROUP BY B.Book_id, B.Title;
+SELECT * FROM Available_Books;
