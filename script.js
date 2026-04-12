@@ -1,6 +1,5 @@
-// ─── DATA ───
 let events = [];
-let currentTab = "all";
+let currentTab = "upcoming";
 
 const iconMap = {
   Concert:  { emoji: "🎵", cls: "concert" },
@@ -11,8 +10,9 @@ const iconMap = {
   Other:    { emoji: "📌", cls: "default" },
 };
 
-// ─── FETCH EVENTS FROM BACKEND ───
+// FETCH
 async function fetchEvents() {
+
   try {
     const res = await fetch('api/get_events.php');
     events = await res.json();
@@ -20,21 +20,25 @@ async function fetchEvents() {
   } catch (err) {
     console.error('Error fetching events:', err);
   }
+
+  const res = await fetch('fetch_event.php');
+  events = await res.json();
+  renderEvents();
 }
 
-// ─── RENDER EVENTS ───
+// RENDER
 function renderEvents() {
   const list = document.getElementById("eventList");
   const search = document.getElementById("searchInput").value.toLowerCase();
   const category = document.getElementById("categoryFilter").value;
 
   const filtered = events.filter(e => {
-    const matchTab =
-      currentTab === "all"      ? e.status === "upcoming"  :
-      currentTab === "ongoing"  ? e.status === "ongoing"   :
-                                  e.status === "completed";
-    const matchSearch = e.name.toLowerCase().includes(search) || e.type.toLowerCase().includes(search);
-    const matchCat = category ? e.type === category : true;
+    const matchTab = e.status === currentTab;
+    const matchSearch =
+      e.event_name.toLowerCase().includes(search) ||
+      e.event_type.toLowerCase().includes(search);
+    const matchCat = category ? e.event_type === category : true;
+
     return matchTab && matchSearch && matchCat;
   });
 
@@ -45,46 +49,44 @@ function renderEvents() {
     return;
   }
 
-  filtered.forEach((ev, i) => {
-    const icon = iconMap[ev.type] || iconMap.Other;
-    const badgeCls =
-      ev.status === "upcoming"  ? "badge-upcoming"  :
-      ev.status === "ongoing"   ? "badge-ongoing"   : "badge-completed";
-    const badgeLabel = ev.status.charAt(0).toUpperCase() + ev.status.slice(1);
+  filtered.forEach(ev => {
+    const icon = iconMap[ev.event_type] || iconMap.Other;
 
     const card = document.createElement("div");
     card.className = "event-card";
-    card.style.animationDelay = `${i * 0.05}s`;
+
     card.innerHTML = `
       <div class="event-icon ${icon.cls}">${icon.emoji}</div>
       <div class="event-info">
-        <div class="event-name">${ev.name}</div>
-        <div class="event-type">${ev.type}</div>
-        <div class="event-datetime">📅 ${ev.date} · ⏰ ${ev.time}</div>
-        ${ev.venue ? `<div class="event-venue">📍 ${ev.venue}</div>` : ''}
+        <div class="event-name">${ev.event_name}</div>
+        <div class="event-type">${ev.event_type}</div>
+        <div class="event-datetime">📅 ${ev.event_date} · ⏰ ${ev.event_time}</div>
+        <div class="event-venue">📍 ${ev.venue}</div>
       </div>
       <div class="event-meta">
-        <span class="badge ${badgeCls}">${badgeLabel}</span>
-        ${ev.status === "upcoming"
-          ? `<button class="btn-register" onclick="showToast('Registered for ${ev.name}!')">Register</button>`
-          : ""}
-        <button class="btn-delete" onclick="deleteEvent(${ev.id})">🗑️</button>
+        <button class="btn-delete" onclick="deleteEvent(${ev.event_id})">🗑️</button>
       </div>
     `;
     list.appendChild(card);
   });
 }
 
-// ─── TABS ───
+// TABS
 function switchTab(btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  const map = { "Upcoming": "all", "Ongoing": "ongoing", "Completed": "completed" };
-  currentTab = map[btn.textContent.trim()] || "all";
+
+  const map = {
+    "Upcoming": "upcoming",
+    "Ongoing": "ongoing",
+    "Completed": "completed"
+  };
+
+  currentTab = map[btn.textContent.trim()];
   renderEvents();
 }
 
-// ─── MODAL ───
+// MODAL
 function openModal() {
   document.getElementById("modalOverlay").classList.add("open");
 }
@@ -95,7 +97,7 @@ function closeModal() {
 }
 
 function handleOverlayClick(e) {
-  if (e.target === document.getElementById("modalOverlay")) closeModal();
+  if (e.target.id === "modalOverlay") closeModal();
 }
 
 function clearForm() {
@@ -106,19 +108,20 @@ function clearForm() {
   document.getElementById("eventStatus").selectedIndex = 0;
 }
 
-// ─── ADD EVENT ───
+// ADD EVENT
 async function addEvent() {
-  const name   = document.getElementById("eventName").value.trim();
-  const type   = document.getElementById("eventType").value;
-  const date   = document.getElementById("eventDate").value;
-  const time   = document.getElementById("eventTime").value;
+  const name = document.getElementById("eventName").value.trim();
+  const type = document.getElementById("eventType").value;
+  const date = document.getElementById("eventDate").value;
+  const time = document.getElementById("eventTime").value;
+  const venue = document.getElementById("eventVenue").value.trim();
   const status = document.getElementById("eventStatus").value;
-  const venue  = document.getElementById("eventVenue").value.trim();
 
   if (!name || !type || !date || !time) {
-    showToast("⚠️ Please fill all fields!");
+    showToast("Fill all fields!");
     return;
   }
+
 
   try {
     const res = await fetch('api/add_event.php', {
@@ -135,10 +138,21 @@ async function addEvent() {
     showToast("❌ Failed to add event!");
     console.error(err);
   }
+
+  await fetch('add_event.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, type, date, time, venue, status })
+  });
+
+  fetchEvents();
+  closeModal();
+  showToast("Event added!");
 }
 
-// ─── DELETE EVENT ───
+// DELETE
 async function deleteEvent(id) {
+
   if (!confirm("Are you sure you want to delete this event?")) return;
   try {
     await fetch(`api/delete_event.php?id=${id}`);
@@ -149,15 +163,23 @@ async function deleteEvent(id) {
     showToast("❌ Failed to delete event!");
     console.error(err);
   }
+  if (!confirm("Delete event?")) return;
+
+  await fetch(`delete_event.php?id=${id}`);
+  fetchEvents();
+  showToast("Deleted!");
 }
 
-// ─── TOAST ───
+// TOAST
 function showToast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2800);
+  setTimeout(() => t.classList.remove("show"), 2500);
 }
 
+
 // ─── INIT ───
+fetchEvents();
+// INIT
 fetchEvents();
