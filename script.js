@@ -14,7 +14,7 @@ const iconMap = {
 // ─── FETCH EVENTS FROM BACKEND ───
 async function fetchEvents() {
   try {
-    const res = await fetch('http://localhost:3000/api/events');
+    const res = await fetch('api/get_events.php');
     events = await res.json();
     renderEvents();
   } catch (err) {
@@ -121,7 +121,7 @@ async function addEvent() {
   }
 
   try {
-    const res = await fetch('http://localhost:3000/api/events', {
+    const res = await fetch('api/add_event.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, type, date, time, status, venue })
@@ -141,9 +141,7 @@ async function addEvent() {
 async function deleteEvent(id) {
   if (!confirm("Are you sure you want to delete this event?")) return;
   try {
-    await fetch(`http://localhost:3000/api/events/${id}`, {
-      method: 'DELETE'
-    });
+    await fetch(`api/delete_event.php?id=${id}`);
     events = events.filter(e => e.id !== id);
     renderEvents();
     showToast("🗑️ Event deleted!");
