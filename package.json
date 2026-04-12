@@ -9,5 +9,18 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Varsha-Poojary13/college-event-management.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Varsha-Poojary13/college-event-management/issues"
+  },
+  "homepage": "https://github.com/Varsha-Poojary13/college-event-management#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "mysql2": "^3.22.0"
+  }
 }
